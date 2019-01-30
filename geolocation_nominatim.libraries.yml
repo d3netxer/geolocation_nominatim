@@ -6,14 +6,7 @@ geolocation-nominatim-widget:
     geolocation_nominatim.widget.js: {}
   dependencies:
     - geolocation_nominatim/leaflet-control-geocoder
-
-
-leaflet:
-  js:
-    /libraries/leaflet/dist/leaflet.js: {}
-  css:
-    component:
-      /libraries/leaflet/dist/leaflet.css: {}
+    - leaflet/leaflet
 
 leaflet-control-geocoder:
   remote: https://github.com/perliedman/leaflet-control-geocoder
@@ -27,16 +20,5 @@ leaflet-control-geocoder:
       /libraries/leaflet-control-geocoder/dist/Control.Geocoder.css: {}
   js:
     /libraries/leaflet-control-geocoder/dist/Control.Geocoder.js: {}
-
-leaflet-locatecontrol:
-  js:
-    /libraries/leaflet.locatecontrol/dist/L.Control.Locate.min.js: {}
-  css:
-    component:
-      /libraries/leaflet.locatecontrol/dist/L.Control.Locate.min.css: {}
-leaflet.fullscreen:
-  js:
-    /libraries/leaflet-fullscreen/dist/Leaflet.fullscreen.min.js: {}
-  css:
-    component:
-      /libraries/leaflet-fullscreen/dist/leaflet.fullscreen.css: {}
+  dependencies:
+    - leaflet/leaflet

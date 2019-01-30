@@ -1,0 +1,121 @@
+diff --git a/geolocation_nominatim.widget.js b/geolocation_nominatim.widget.js
+index bc5ac50..6e4ad39 100644
+--- a/geolocation_nominatim.widget.js
++++ b/geolocation_nominatim.widget.js
+@@ -6,27 +6,34 @@
+         }
+         // Init map.
+         var map = L.map(mapSettings.id).setView([mapSettings.centerLat, mapSettings.centerLng], mapSettings.zoom);
+-        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
++        L.tileLayer(mapSettings.tileServerUrl, {
+             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+         }).addTo(map);
+ 
+         // Init geocoder.
+         var geocodingQueryParams = {};
+-        if (mapSettings.limitCountryCodes != '') {
+-            geocodingQueryParams.countrycodes = mapSettings.limitCountryCodes;
++        if (mapSettings.limitCountryCodes != '' || mapSettings.limitViewbox != '' ) {
++            geocodingQueryParams = {
++                'countrycodes' : mapSettings.limitCountryCodes,
++                'viewbox': mapSettings.limitViewbox,
++                'bounded': 1
++            };
+         }
++       
++        var geocoderNominatim = L.Control.Geocoder.nominatim({
++            // Todo: Make this an optional setting.
++            geocodingQueryParams: geocodingQueryParams,
++            reverseQueryParams: {
++                extratags: 1,
++                namedetails: 0,
++                addressdetails: 1
++            }
++        });
++        
+         var geocoder = L.Control.geocoder({
+             defaultMarkGeocode: false,
+             collapsed: false,
+-            geocoder: L.Control.Geocoder.Nominatim({
+-                // Todo: Make this an optional setting.
+-                geocodingQueryParams: geocodingQueryParams,
+-                reverseQueryParams: {
+-                    extratags: 1,
+-                    namedetails: 1,
+-                    addressdetails: 1
+-                }
+-            })
++            geocoder: geocoderNominatim
+         });
+ 
+         var marker;
+@@ -116,8 +123,9 @@
+         if ('postcode' in details) {
+             $('input.postal-code', $address).val(details.postcode);
+         }
+-        if ('city' in details) {
+-            $('input.locality', $address).val(details.city);
++        if ('city' in details || 'town' in details) {
++            var locality = details.city ? details.city : details.town;
++            $('input.locality', $address).val(locality);
+         }
+         if ('road' in details) {
+             $('input.address-line1', $address).val(details.road);
+diff --git a/src/Plugin/Field/FieldWidget/GeolocationNominatimWidget.php b/src/Plugin/Field/FieldWidget/GeolocationNominatimWidget.php
+index bd90ac1..65e2b80 100644
+--- a/src/Plugin/Field/FieldWidget/GeolocationNominatimWidget.php
++++ b/src/Plugin/Field/FieldWidget/GeolocationNominatimWidget.php
+@@ -32,6 +32,8 @@ class GeolocationNominatimWidget extends WidgetBase {
+       'center_lng' => 0,
+       'set_address_field' => 0,
+       'limit_countrycodes' => '',
++      'limit_viewbox' => '',
++      'tileServerUrl' => 'http://{s}.tile.osm.org/{z}/{x}/{y}.png'
+     ] + parent::defaultSettings();
+   }
+ 
+@@ -41,7 +43,7 @@ class GeolocationNominatimWidget extends WidgetBase {
+   public function settingsForm(array $form, FormStateInterface $form_state) {
+     $uniq_id = Html::getUniqueId('geolocation-nominatim-map');
+     $elements = [];
+-    for ($i = 0; $i <= 14; $i++) {
++    for ($i = 0; $i <= 18; $i++) {
+       $zoom_options[$i] = $i;
+     }
+     $elements['zoom'] = [
+@@ -69,6 +71,12 @@ class GeolocationNominatimWidget extends WidgetBase {
+       '#default_value' => $this->getSetting('limit_countrycodes'),
+       '#description' => $this->t('Optionally enter a comma-seperated list 2-letter country codes to limit search results.')
+     ];
++    $elements['limit_viewbox'] = [
++      '#type' => 'textfield',
++      '#title' => $this->t('Limit search results to a specific area'),
++      '#default_value' => $this->getSetting('limit_viewbox'),
++      '#description' => $this->t('Optionally enter a bounding-box (left,top,right,bottom) to limit search results.')
++    ];
+     $elements['set_address_field'] = [
+       '#type' => 'checkbox',
+       '#title' => $this->t('Populate address field (experimental)'),
+@@ -76,6 +84,13 @@ class GeolocationNominatimWidget extends WidgetBase {
+       '#description' => $this->t('Experimental feature: Populate an address field with the geocoding results. This works only if the form has one field of type address (https://www.drupal.org/project/address) and might not cover all countries and circumnstances. NOTE: The address form fields will be populated even if they already contain default values. Use with care and not yet in production.')
+     ];
+ 
++    $elements['tileServerUrl'] = [
++      '#type' => 'textfield',
++      '#title' => $this->t('Default map tile server url'),
++      '#default_value' => $this->getSetting('tileServerUrl'),
++      '#description' => $this->t('Chose a tileserver url like "http://{s}.tile.osm.org/{z}/{x}/{y}.png".')
++
++    ];
+ //    This somehow doesn't work, javascript error, seems a library isn't loaded.
+ //    @todo: Fix this.
+ //    $elements['map'] = [
+@@ -163,6 +178,8 @@ class GeolocationNominatimWidget extends WidgetBase {
+               'label' => $label,
+               'setAddressField' => $this->getSetting('set_address_field'),
+               'limitCountryCodes'  => $this->getSetting('limit_countrycodes'),
++              'limitViewbox'  => $this->getSetting('limit_viewbox'),
++              'tileServerUrl'  => $this->getSetting('tileServerUrl'),
+             ],
+           ],
+         ],
